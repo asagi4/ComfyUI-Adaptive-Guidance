@@ -7,8 +7,10 @@ cos = torch.nn.CosineSimilarity(dim=1)
 class AdaptiveGuider(comfy.samplers.CFGGuider):
     threshold_timestep = 0
 
-    def set_cfg(self, cfg, threshold):
+    def set_cfg(self, cfg):
         self.cfg = cfg
+
+    def set_threshold(self, threshold):
         self.threshold = threshold
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
@@ -19,27 +21,27 @@ class AdaptiveGuider(comfy.samplers.CFGGuider):
             return comfy.samplers.sampling_function(
                 self.inner_model, x, timestep, uncond, cond, 1.0, model_options=model_options, seed=seed
             )
-        else:
-            self.threshold_timestep = 0
-            uncond_pred, cond_pred = comfy.samplers.calc_cond_batch(
-                self.inner_model, [uncond, cond], x, timestep, model_options
-            )
+        self.threshold_timestep = 0
+        uncond_pred, cond_pred = comfy.samplers.calc_cond_batch(
+            self.inner_model, [uncond, cond], x, timestep, model_options
+        )
+        if not self.threshold >= 1.0:
             # Is this reshape correct? It at least gives a scalar value...
             sim = cos(cond_pred.reshape(1, -1), uncond_pred.reshape(1, -1)).item()
             if sim >= self.threshold:
                 print("AdaptiveGuidance: Cosine similarity", sim, "exceeds threshold, setting CFG to 1.0")
                 self.threshold_timestep = ts
-            return comfy.samplers.cfg_function(
-                self.inner_model,
-                cond_pred,
-                uncond_pred,
-                self.cfg,
-                x,
-                timestep,
-                model_options=model_options,
-                cond=cond,
-                uncond=uncond,
-            )
+        return comfy.samplers.cfg_function(
+            self.inner_model,
+            cond_pred,
+            uncond_pred,
+            self.cfg,
+            x,
+            timestep,
+            model_options=model_options,
+            cond=cond,
+            uncond=uncond,
+        )
 
 
 class AdaptiveGuidance:
@@ -63,7 +65,8 @@ class AdaptiveGuidance:
     def patch(self, model, positive, negative, threshold, cfg):
         g = AdaptiveGuider(model)
         g.set_conds(positive, negative)
-        g.set_cfg(cfg, threshold)
+        g.set_threshold(threshold)
+        g.set_cfg(cfg)
 
         return (g,)
 
