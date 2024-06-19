@@ -6,6 +6,7 @@ cos = torch.nn.CosineSimilarity(dim=1)
 
 class AdaptiveGuider(comfy.samplers.CFGGuider):
     threshold_timestep = 0
+    uz_scale = 0.0
 
     def set_cfg(self, cfg):
         self.cfg = cfg
@@ -13,11 +14,24 @@ class AdaptiveGuider(comfy.samplers.CFGGuider):
     def set_threshold(self, threshold):
         self.threshold = threshold
 
+    def set_uncond_zero_scale(self, scale):
+        self.uz_scale = scale
+
+    def zero_cond(self, args):
+        cond = args["cond_denoised"]
+        x = args["input"]
+        x -= x.mean()
+        cond -= cond.mean()
+        return x - (cond / cond.std() ** 0.5) * self.uz_scale
+
     def predict_noise(self, x, timestep, model_options={}, seed=None):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
         ts = timestep[0].item()
         if self.threshold_timestep > ts:
+            if self.uz_scale > 0.0:
+                model_options = model_options.copy()
+                model_options["sampler_cfg_function"] = self.zero_cond
             return comfy.samplers.sampling_function(
                 self.inner_model, x, timestep, uncond, cond, 1.0, model_options=model_options, seed=seed
             )
@@ -54,7 +68,8 @@ class AdaptiveGuidance:
                 "negative": ("CONDITIONING",),
                 "threshold": ("FLOAT", {"default": 0.990, "min": 0.90, "max": 1.0, "step": 0.001, "round": 0.001}),
                 "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
-            }
+            },
+            "optional": {"uncond_zero_scale": ("FLOAT", {"default": 0.0, "max": 2.0, "step": 0.01})},
         }
 
     RETURN_TYPES = ("GUIDER",)
@@ -62,10 +77,11 @@ class AdaptiveGuidance:
 
     CATEGORY = "sampling/custom_sampling/guiders"
 
-    def patch(self, model, positive, negative, threshold, cfg):
+    def patch(self, model, positive, negative, threshold, cfg, uncond_zero_scale=0.0):
         g = AdaptiveGuider(model)
         g.set_conds(positive, negative)
         g.set_threshold(threshold)
+        g.set_uncond_zero_scale(uncond_zero_scale)
         g.set_cfg(cfg)
 
         return (g,)
