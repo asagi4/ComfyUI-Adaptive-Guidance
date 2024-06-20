@@ -17,3 +17,5 @@ I'm not sure if the cosine similarity calculation matches the original paper sin
 Set uncond_zero_scale to > 0 to enable "uncond zero" CFG *after* the normal CFG gets disabled. Stolen from https://github.com/Extraltodeus/Uncond-Zero-for-ComfyUI
 
 It seems to work slightly better than just running without CFG, but YMMV
+
+Note: this functionality is unstable and will probably change, so using it means your workflows likely won't be perfectly reproducible.
