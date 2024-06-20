@@ -1,14 +1,14 @@
 [project]
 name = "comfyui-adaptive-guidance"
-description = "An implementation of adaptive guidance for ComfyUI\nSee [a/https://bcv-uniandes.github.io/adaptiveguidance-wp/](https://bcv-uniandes.github.io/adaptiveguidance-wp/)"
-version = "1.0.0"
-license = "LICENSE"
+description = "An implementation of adaptive guidance for ComfyUI\nSee https://bcv-uniandes.github.io/adaptiveguidance-wp/
+version = "0.1.0"
+license = "GPL-3.0"
 
 [project.urls]
 Repository = "https://github.com/asagi4/ComfyUI-Adaptive-Guidance"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
-DisplayName = "ComfyUI-Adaptive-Guidance"
+PublisherId = "asagi4"
+DisplayName = "ComfyUI Adaptive Guidance"
 Icon = ""
