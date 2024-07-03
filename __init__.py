@@ -87,4 +87,5 @@ class AdaptiveGuidanceGuider:
         return (g,)
 
 
-NODE_CLASS_MAPPINGS = {"AdaptiveGuidanceGuider": AdaptiveGuidanceGuider}
+NODE_CLASS_MAPPINGS = {"AdaptiveGuidance": AdaptiveGuidanceGuider}
+NODE_DISPLAY_NAME_MAPPINGS = {"AdaptiveGuidance": "AdaptiveGuidanceGuider"}
