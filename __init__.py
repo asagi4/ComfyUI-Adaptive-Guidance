@@ -91,7 +91,7 @@ class AdaptiveGuidanceGuider:
 class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
     threshold_timestep = 0
     uz_scale = 0.0
-    
+
     def set_threshold(self, threshold):
         self.threshold = threshold
 
@@ -104,7 +104,7 @@ class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
         x -= x.mean()
         cond -= cond.mean()
         return x - (cond / cond.std() ** 0.5) * self.uz_scale
-        
+
     def predict_noise(self, x, timestep, model_options={}, seed=None):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
@@ -121,9 +121,12 @@ class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
         # From comfy_extras.nodes_perpneg - Guider_PerpNeg
         # No need for calculating perp-neg when skipping negative
         empty_cond = self.conds.get("empty_negative_prompt")
-        (cond_pred, uncond_pred, empty_cond_pred) = \
-            comfy.samplers.calc_cond_batch(self.inner_model, [cond, uncond, empty_cond], x, timestep, model_options)
-        cfg_result = comfy_extras.nodes_perpneg.perp_neg(x, cond_pred, uncond_pred, empty_cond_pred, self.neg_scale, self.cfg)
+        (cond_pred, uncond_pred, empty_cond_pred) = comfy.samplers.calc_cond_batch(
+            self.inner_model, [cond, uncond, empty_cond], x, timestep, model_options
+        )
+        cfg_result = comfy_extras.nodes_perpneg.perp_neg(
+            x, cond_pred, uncond_pred, empty_cond_pred, self.neg_scale, self.cfg
+        )
 
         if not self.threshold >= 1.0:
             sim = cos(cond_pred.reshape(1, -1), uncond_pred.reshape(1, -1)).item()
@@ -145,10 +148,12 @@ class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
                 "input": x,
                 # not in the original call in samplers.py:cfg_function, but made available for future hooks
                 "empty_cond": empty_cond,
-                "empty_cond_denoised": empty_cond_pred,}
+                "empty_cond_denoised": empty_cond_pred,
+            }
             cfg_result = fn(args)
 
         return cfg_result
+
 
 class PerpNegAGGuider:
     @classmethod
@@ -165,13 +170,15 @@ class PerpNegAGGuider:
             },
             "optional": {"uncond_zero_scale": ("FLOAT", {"default": 0.0, "max": 2.0, "step": 0.01})},
         }
-    
+
     RETURN_TYPES = ("GUIDER",)
     FUNCTION = "get_guider"
 
     CATEGORY = "sampling/custom_sampling/guiders"
 
-    def get_guider(self, model, positive, negative, empty_conditioning, threshold, cfg, neg_scale, uncond_zero_scale=0.0):
+    def get_guider(
+        self, model, positive, negative, empty_conditioning, threshold, cfg, neg_scale, uncond_zero_scale=0.0
+    ):
         g = Guider_PerpNegAG(model)
         g.set_conds(positive, negative, empty_conditioning)
         g.set_threshold(threshold)
