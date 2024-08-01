@@ -4,7 +4,7 @@ import torch
 cos = torch.nn.CosineSimilarity(dim=1)
 
 
-class AdaptiveGuider(comfy.samplers.CFGGuider):
+class Guider_AdaptiveGuidance(comfy.samplers.CFGGuider):
     threshold_timestep = 0
     uz_scale = 0.0
 
@@ -43,7 +43,7 @@ class AdaptiveGuider(comfy.samplers.CFGGuider):
             # Is this reshape correct? It at least gives a scalar value...
             sim = cos(cond_pred.reshape(1, -1), uncond_pred.reshape(1, -1)).item()
             if sim >= self.threshold:
-                print("AdaptiveGuidance: Cosine similarity", sim, "exceeds threshold, setting CFG to 1.0")
+                print(f"\nAdaptiveGuidance: Cosine similarity {sim:.4f} exceeds threshold, setting CFG to 1.0")
                 self.threshold_timestep = ts
         return comfy.samplers.cfg_function(
             self.inner_model,
@@ -58,7 +58,7 @@ class AdaptiveGuider(comfy.samplers.CFGGuider):
         )
 
 
-class AdaptiveGuidance:
+class AdaptiveGuidanceGuider:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -73,12 +73,12 @@ class AdaptiveGuidance:
         }
 
     RETURN_TYPES = ("GUIDER",)
-    FUNCTION = "patch"
+    FUNCTION = "get_guider"
 
     CATEGORY = "sampling/custom_sampling/guiders"
 
-    def patch(self, model, positive, negative, threshold, cfg, uncond_zero_scale=0.0):
-        g = AdaptiveGuider(model)
+    def get_guider(self, model, positive, negative, threshold, cfg, uncond_zero_scale=0.0):
+        g = Guider_AdaptiveGuidance(model)
         g.set_conds(positive, negative)
         g.set_threshold(threshold)
         g.set_uncond_zero_scale(uncond_zero_scale)
@@ -87,4 +87,5 @@ class AdaptiveGuidance:
         return (g,)
 
 
-NODE_CLASS_MAPPINGS = {"AdaptiveGuidance": AdaptiveGuidance}
+NODE_CLASS_MAPPINGS = {"AdaptiveGuidance": AdaptiveGuidanceGuider}
+NODE_DISPLAY_NAME_MAPPINGS = {"AdaptiveGuidance": "AdaptiveGuidanceGuider"}
