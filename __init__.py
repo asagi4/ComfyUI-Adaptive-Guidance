@@ -26,6 +26,11 @@ class Guider_AdaptiveGuidance(comfy.samplers.CFGGuider):
         return x - (cond / cond.std() ** 0.5) * self.uz_scale
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
+        if self.cfg == 1.0:
+            cond = self.conds.get("positive")
+            return comfy.samplers.sampling_function(
+                self.inner_model, x, timestep, cond, cond, 1.0, model_options=model_options, seed=seed
+            )
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
         ts = timestep[0].item()
@@ -91,7 +96,11 @@ class AdaptiveGuidanceGuider:
 class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
     threshold_timestep = 0
     uz_scale = 0.0
-
+    
+    def set_cfg(self, cfg, neg_scale):
+        self.cfg = cfg
+        self.neg_scale = neg_scale
+        
     def set_threshold(self, threshold):
         self.threshold = threshold
 
@@ -106,6 +115,11 @@ class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
         return x - (cond / cond.std() ** 0.5) * self.uz_scale
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
+        if self.cfg == 1.0:
+            cond = self.conds.get("positive")
+            return comfy.samplers.sampling_function(
+                self.inner_model, x, timestep, cond, cond, 1.0, model_options=model_options, seed=seed
+            )
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
         ts = timestep[0].item()
