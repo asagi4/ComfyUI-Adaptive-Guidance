@@ -92,7 +92,6 @@ class AdaptiveGuidanceGuider:
 
         return (g,)
 
-
 class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
     threshold_timestep = 0
     uz_scale = 0.0
