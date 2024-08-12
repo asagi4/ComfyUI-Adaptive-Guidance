@@ -29,7 +29,7 @@ class Guider_AdaptiveGuidance(comfy.samplers.CFGGuider):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
         ts = timestep[0].item()
-        if self.threshold_timestep > ts:
+        if self.threshold_timestep > ts or self.cfg == 1.0:
             if self.uz_scale > 0.0:
                 model_options = model_options.copy()
                 model_options["sampler_cfg_function"] = self.zero_cond
@@ -109,7 +109,7 @@ class Guider_PerpNegAG(comfy_extras.nodes_perpneg.Guider_PerpNeg):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
         ts = timestep[0].item()
-        if self.threshold_timestep > ts:
+        if self.threshold_timestep > ts or self.cfg == 1.0:
             if self.uz_scale > 0.0:
                 model_options = model_options.copy()
                 model_options["sampler_cfg_function"] = self.zero_cond
