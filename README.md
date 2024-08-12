@@ -4,6 +4,8 @@ An implementation of adaptive guidance for ComfyUI
 
 See https://bcv-uniandes.github.io/adaptiveguidance-wp/
 
+Import [this workflow](workflows/AGExample.json?raw=1) into ComfyUI to compare Adaptive Guidance vs. normal CFG.
+
 ## What
 
 There's an `AdaptiveGuidance` node (under `sampling/custom_sampling/guiders`) that can be used with `SamplerCustomAdvanced`. Normally, you should keep the threshold quite high, between `0.99` and `1.0`

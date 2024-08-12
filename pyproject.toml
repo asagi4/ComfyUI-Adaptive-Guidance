@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-adaptive-guidance"
 description = "An implementation of adaptive guidance for ComfyUI\nSee https://bcv-uniandes.github.io/adaptiveguidance-wp/"
-version = "0.2.0"
+version = "0.2.1"
 license = { text = "GNU General Public License v3.0" }
 
 [project.urls]
