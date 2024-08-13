@@ -6,13 +6,15 @@ cos = torch.nn.CosineSimilarity(dim=1)
 
 
 class Guider_AdaptiveGuidance(comfy.samplers.CFGGuider):
+    cfg_start_timestep = 1000.0
     threshold_timestep = 0
     uz_scale = 0.0
 
     def set_cfg(self, cfg):
         self.cfg = cfg
 
-    def set_threshold(self, threshold):
+    def set_threshold(self, threshold, start_at):
+        self.cfg_start_timestep = start_at
         self.threshold = threshold
 
     def set_uncond_zero_scale(self, scale):
@@ -29,7 +31,7 @@ class Guider_AdaptiveGuidance(comfy.samplers.CFGGuider):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
         ts = timestep[0].item()
-        if self.threshold_timestep > ts or self.cfg == 1.0:
+        if ts >= self.cfg_start_timestep or self.threshold_timestep > ts or self.cfg == 1.0:
             if self.uz_scale > 0.0:
                 model_options = model_options.copy()
                 model_options["sampler_cfg_function"] = self.zero_cond
@@ -70,7 +72,10 @@ class AdaptiveGuidanceGuider:
                 "threshold": ("FLOAT", {"default": 0.990, "min": 0.90, "max": 1.0, "step": 0.001, "round": 0.001}),
                 "cfg": ("FLOAT", {"default": 8.0, "min": 0.0, "max": 100.0, "step": 0.1, "round": 0.01}),
             },
-            "optional": {"uncond_zero_scale": ("FLOAT", {"default": 0.0, "max": 2.0, "step": 0.01})},
+            "optional": {
+                "uncond_zero_scale": ("FLOAT", {"default": 0.0, "max": 2.0, "step": 0.01}),
+                "cfg_start_pct": ("FLOAT", {"default": 0.0, "max": 1.0, "step": 0.01}),
+            },
         }
 
     RETURN_TYPES = ("GUIDER",)
@@ -78,10 +83,11 @@ class AdaptiveGuidanceGuider:
 
     CATEGORY = "sampling/custom_sampling/guiders"
 
-    def get_guider(self, model, positive, negative, threshold, cfg, uncond_zero_scale=0.0):
+    def get_guider(self, model, positive, negative, threshold, cfg, uncond_zero_scale=0.0, cfg_start_pct=0.0):
+        cfg_start_timestep = model.model_sampling.percent_to_sigma(cfg_start_pct)
         g = Guider_AdaptiveGuidance(model)
         g.set_conds(positive, negative)
-        g.set_threshold(threshold)
+        g.set_threshold(threshold, cfg_start_timestep)
         g.set_uncond_zero_scale(uncond_zero_scale)
         g.set_cfg(cfg)
 
