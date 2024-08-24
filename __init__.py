@@ -53,12 +53,12 @@ class Guider_AdaptiveGuidance(AdaptiveGuider, comfy.samplers.CFGGuider):
     def calc_conds(self, x, timestep, model_options):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
-        return comfy.samplers.calc_cond_batch(self.inner_model, [uncond, cond], x, timestep, model_options)
+        return comfy.samplers.calc_cond_batch(self.inner_model, [cond, uncond], x, timestep, model_options)
 
     def calc_cfg(self, conds, x, timestep, model_options):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
-        uncond_pred, cond_pred = conds
+        cond_pred, uncond_pred = conds
 
         return comfy.samplers.cfg_function(
             self.inner_model,
