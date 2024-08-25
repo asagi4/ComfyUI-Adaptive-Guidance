@@ -44,7 +44,6 @@ class AdaptiveGuider(object):
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
         ts = timestep[0].item()
-
         # Check if cfg is 1, if so, skip unnecessary calculations
         if self.cfg == 1.0:
             cond = self.conds.get("positive")
