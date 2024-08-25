@@ -34,7 +34,7 @@ class AdaptiveGuider(object):
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
         ts = timestep[0].item()
-        if ts >= self.cfg_start_timestep or self.threshold_timestep > ts or self.cfg == 1.0:
+        if ts > self.cfg_start_timestep or self.threshold_timestep > ts or self.cfg == 1.0:
             if self.uz_scale > 0.0:
                 model_options = model_options.copy()
                 model_options["sampler_cfg_function"] = self.zero_cond
