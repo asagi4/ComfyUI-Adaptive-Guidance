@@ -20,6 +20,13 @@ class AdaptiveGuider(object):
 
     def set_uncond_zero_scale(self, scale):
         self.uz_scale = scale
+        
+    def zero_cond(self, args):
+        cond = args["cond_denoised"]
+        x = args["input"]
+        x -= x.mean()
+        cond -= cond.mean()
+        return x - (cond / cond.std() ** 0.5) * self.uz_scale
 
     def set_cfg(self, cfg):
         self.cfg = cfg
