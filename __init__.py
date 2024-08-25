@@ -37,6 +37,16 @@ class AdaptiveGuider(object):
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
         ts = timestep[0].item()
+
+        # Check if cfg is 1, if so, skip unnecessary calculations
+        if self.cfg == 1.0:
+            cond = self.conds.get("positive")
+            uncond = self.conds.get("negative")
+            # Directly return unconditioned noise prediction without guidance if cfg == 1.0
+            return comfy.samplers.sampling_function(
+                self.inner_model, x, timestep, uncond, cond, self.cfg, model_options=model_options, seed=seed
+            )
+        
         if ts >= self.cfg_start_timestep:
             current_cfg = self.original_cfg
         elif self.threshold_timestep > ts:
@@ -57,7 +67,6 @@ class AdaptiveGuider(object):
         return comfy.samplers.sampling_function(
             self.inner_model, x, timestep, uncond, cond, current_cfg, model_options=model_options, seed=seed
         )
-
 
 class Guider_AdaptiveGuidance(AdaptiveGuider, comfy.samplers.CFGGuider):
     def __init__(self, model):
