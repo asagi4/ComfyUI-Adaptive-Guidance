@@ -4,12 +4,15 @@ import torch
 
 cos = torch.nn.CosineSimilarity(dim=1)
 
-
 # shared structure for adaptive guiders
 class AdaptiveGuider(object):
-    cfg_start_timestep = 1000.0
-    threshold_timestep = 0
-    uz_scale = 0.0
+    def __init__(self, model):
+        super().__init__(model)  # This will initialize CFGGuider
+        self.cfg_start_timestep = 1000.0
+        self.threshold_timestep = 0
+        self.uz_scale = 0.0
+        self.threshold = 1.0
+        self.original_cfg = 1.0
 
     def set_threshold(self, threshold, start_at):
         self.cfg_start_timestep = start_at
@@ -18,38 +21,47 @@ class AdaptiveGuider(object):
     def set_uncond_zero_scale(self, scale):
         self.uz_scale = scale
 
-    def zero_cond(self, args):
-        cond = args["cond_denoised"]
-        x = args["input"]
-        x -= x.mean()
-        cond -= cond.mean()
-        return x - (cond / cond.std() ** 0.5) * self.uz_scale
+    def set_cfg(self, cfg):
+        self.cfg = cfg
+        self.original_cfg = cfg
 
     def check_similarity(self, ts, cond_pred, uncond_pred):
-        if not self.threshold >= 1.0:
+        if self.threshold < 1.0:
             sim = cos(cond_pred.reshape(1, -1), uncond_pred.reshape(1, -1)).item()
             if sim >= self.threshold:
                 print(f"AdaptiveGuider: Cosine similarity {sim:.4f} exceeds threshold, setting CFG to 1.0")
                 self.threshold_timestep = ts
+                self.cfg = 1.0
+            else:
+                self.cfg = self.original_cfg
 
     def predict_noise(self, x, timestep, model_options={}, seed=None):
         ts = timestep[0].item()
-        if ts >= self.cfg_start_timestep or self.threshold_timestep > ts or self.cfg == 1.0:
-            if self.uz_scale > 0.0:
-                model_options = model_options.copy()
-                model_options["sampler_cfg_function"] = self.zero_cond
-            cond = self.conds.get("positive")
-            uncond = self.conds.get("negative")
-            return comfy.samplers.sampling_function(
-                self.inner_model, x, timestep, uncond, cond, 1.0, model_options=model_options, seed=seed
-            )
-        self.threshold_timestep = 0
-        conds = self.calc_conds(x, timestep, model_options)
-        self.check_similarity(ts, conds[0], conds[1])
-        return self.calc_cfg(conds, x, timestep, model_options)
+        if ts >= self.cfg_start_timestep:
+            current_cfg = self.original_cfg
+        elif self.threshold_timestep > ts:
+            current_cfg = 1.0
+        else:
+            conds = self.calc_conds(x, timestep, model_options)
+            self.check_similarity(ts, conds[0], conds[1])
+            current_cfg = self.cfg
+            if self.threshold_timestep == 0:
+                return self.calc_cfg(conds, x, timestep, model_options)
+
+        if self.uz_scale > 0.0:
+            model_options = model_options.copy()
+            model_options["sampler_cfg_function"] = self.zero_cond
+        
+        cond = self.conds.get("positive")
+        uncond = self.conds.get("negative")
+        return comfy.samplers.sampling_function(
+            self.inner_model, x, timestep, uncond, cond, current_cfg, model_options=model_options, seed=seed
+        )
 
 
 class Guider_AdaptiveGuidance(AdaptiveGuider, comfy.samplers.CFGGuider):
+    def __init__(self, model):
+        super().__init__(model)
     def calc_conds(self, x, timestep, model_options):
         cond = self.conds.get("positive")
         uncond = self.conds.get("negative")
