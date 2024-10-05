@@ -197,27 +197,45 @@ def project(a, b):
 
 
 class AdaptiveProjectedGuidanceFunction:
-    def __init__(self, momentum, eta, norm_threshold):
+    def __init__(self, momentum, eta, norm_threshold, adaptive_momentum=0, mode="normal"):
         self.eta = eta
         self.norm_threshold = norm_threshold
-        self.current_step = 10000.0
+        self.current_step = 999.0
+        self.init_momentum = momentum
         self.momentum = momentum
         self.running_average = 0.0
+        self.mode = mode
+        self.adaptive_momentum = adaptive_momentum
 
     def __call__(self, args):
-        cond = args["cond_denoised"]
-        uncond = args["uncond_denoised"]
-        scale = args["cond_scale"]
-        step = args["sigma"][0].item()
+        if "denoised" == self.mode:
+            cond = args["cond_denoised"]
+            uncond = args["uncond_denoised"]
+        else:
+            cond = args["cond"]
+            uncond = args["uncond"]
+        cfg_scale = args["cond_scale"]
+        step = args["model"].model_sampling.timestep(args["sigma"])[0].item()
         x = args["input"]
+
         if self.current_step < step:
-            self.current_step = 10000.0
+            self.current_step = 999.0
             self.running_average = 0.0
+            self.momentum = self.init_momentum
+        else:
+            scale = self.init_momentum
+            if self.adaptive_momentum > 0:
+                scale -= scale * (self.adaptive_momentum**4) * (1000 - step)
+                if self.init_momentum < 0 and scale > 0:
+                    scale = 0
+                elif self.init_momentum > 0 and scale < 0:
+                    scale = 0
+                self.momentum = scale
+
         self.current_step = step
 
         diff = cond - uncond
 
-        # I'm honestly not sure what this is supposed to do
         new_average = self.momentum * self.running_average
         self.running_average = diff + new_average
         diff = self.running_average
@@ -229,8 +247,10 @@ class AdaptiveProjectedGuidanceFunction:
 
         diff_parallel, diff_orthogonal = project(diff, cond)
 
-        pred = cond + (scale - 1) * (diff_orthogonal + self.eta * diff_parallel)
-        return x - pred
+        pred = cond + (cfg_scale - 1) * (diff_orthogonal + self.eta * diff_parallel)
+        if "denoised" == self.mode:
+            pred =  x - pred
+        return pred
 
 
 class AdaptiveProjectedGuidance:
@@ -239,9 +259,11 @@ class AdaptiveProjectedGuidance:
         return {
             "required": {"model": ("MODEL",)},
             "optional": {
-                "momentum": ("FLOAT", {"default": -0.5, "min": -1.0, "max": 1.0, "step": 0.01}),
-                "eta": ("FLOAT", {"default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01}),
-                "norm_threshold": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "momentum": ("FLOAT", {"default": 0.5, "min": -1.0, "max": 1.0, "step": 0.01}),
+                "eta": ("FLOAT", {"default": 1, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "norm_threshold": ("FLOAT", {"default": 15.0, "min": 0.0, "max": 50.0, "step": 0.1}),
+                "mode": (["normal", "denoised"],),
+                "adaptive_momentum": ("FLOAT", {"default": 0.18, "min": 0, "max": 1.0, "step": 0.01}),
             },
         }
 
@@ -250,9 +272,8 @@ class AdaptiveProjectedGuidance:
 
     CATEGORY = "_for_testing"
 
-    def apply(self, model, momentum=0.0, eta=1.0, norm_threshold=0.0):
-        fn = AdaptiveProjectedGuidanceFunction(momentum, eta, norm_threshold)
-
+    def apply(self, model, momentum=0.5, eta=1.0, norm_threshold=15.0, mode="normal", adaptive_momentum=0.18):
+        fn = AdaptiveProjectedGuidanceFunction(momentum, eta, norm_threshold, adaptive_momentum, mode)
         m = model.clone()
         m.set_model_sampler_cfg_function(fn)
         return (m,)
